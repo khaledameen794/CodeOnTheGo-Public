@@ -50,6 +50,22 @@ jobs:
           EOF
           fi
 
+      - name: Provision standard Android debug keystore
+        run: |
+          set -eu
+          key_dir="$HOME/.android"
+          key_path="$key_dir/debug.keystore"
+          mkdir -p "$key_dir"
+          keytool -genkeypair -v -noprompt \
+            -keystore "$key_path" \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname 'CN=Android Debug,O=Android,C=US'
+
       - name: Compile Kotlin for V8Debug
         run: |
           flox activate -d flox/base -- ./gradlew :app:compileV8DebugKotlin \
@@ -63,7 +79,7 @@ jobs:
       - name: Assemble V8Debug APK
         run: |
           flox activate -d flox/base -- ./gradlew :app:assembleV8Debug \
-            --no-daemon --console=plain --max-workers=1 \
+            --no-daemon --console=plain --max-workers=1 --stacktrace \
             -Dorg.gradle.jvmargs='-Xmx4096m -Dfile.encoding=UTF-8' \
             -Dorg.gradle.parallel=false -Dorg.gradle.configureondemand=false \
             -Pkotlin.daemon.jvm.options=-Xmx1024m \
