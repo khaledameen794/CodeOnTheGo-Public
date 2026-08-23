@@ -193,7 +193,14 @@ sentry {
 	includeProguardMapping = false
 }
 
-kapt { arguments { arg("eventBusIndex", "${BuildConfig.PACKAGE_NAME}.events.AppEventsIndex") } }
+kapt {
+	// KAPT analyzes Kotlin stubs before Android View Binding and mixed Java/Kotlin
+	// symbols are all available on its compile classpath. Keep that analysis
+	// resilient while the regular Kotlin/Java compilation still verifies the
+	// concrete types later in the variant build.
+	correctErrorTypes = true
+	arguments { arg("eventBusIndex", "${BuildConfig.PACKAGE_NAME}.events.AppEventsIndex") }
+}
 
 desugaring {
 	replacements {
