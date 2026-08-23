@@ -1,0 +1,93 @@
+name: Verify Android Build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-v8-debug:
+    name: Assemble V8 Debug APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install reproducible Android toolchain
+        uses: flox/install-flox-action@v2
+
+      - name: Create non-production Google Services configuration
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          set -eu
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json
+          else
+            cat > app/google-services.json <<'EOF'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "codeonthego-ci",
+              "storage_bucket": "codeonthego-ci.appspot.com"
+            },
+            "client": [{
+              "client_info": {
+                "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+                "android_client_info": { "package_name": "com.itsaky.androidide" }
+              },
+              "oauth_client": [],
+              "api_key": [{ "current_key": "CI_PLACEHOLDER_NOT_FOR_PRODUCTION" }],
+              "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+            }],
+            "configuration_version": "1"
+          }
+          EOF
+          fi
+
+      - name: Compile Kotlin for V8Debug
+        run: |
+          flox activate -d flox/base -- ./gradlew :app:compileV8DebugKotlin \
+            --no-daemon --console=plain --max-workers=1 \
+            -Dorg.gradle.jvmargs='-Xmx4096m -Dfile.encoding=UTF-8' \
+            -Dorg.gradle.parallel=false -Dorg.gradle.configureondemand=false \
+            -Pkotlin.daemon.jvm.options=-Xmx1024m \
+            -Pkotlin.compiler.execution.strategy=in-process \
+            -Pandroid.aapt2.daemonHeapSize=512M
+
+      - name: Assemble V8Debug APK
+        run: |
+          flox activate -d flox/base -- ./gradlew :app:assembleV8Debug \
+            --no-daemon --console=plain --max-workers=1 \
+            -Dorg.gradle.jvmargs='-Xmx4096m -Dfile.encoding=UTF-8' \
+            -Dorg.gradle.parallel=false -Dorg.gradle.configureondemand=false \
+            -Pkotlin.daemon.jvm.options=-Xmx1024m \
+            -Pkotlin.compiler.execution.strategy=in-process \
+            -Pandroid.aapt2.daemonHeapSize=512M
+
+      - name: Verify APK output
+        id: apk
+        run: |
+          set -eu
+          apk_path=$(find app/build/outputs/apk -type f -path '*v8*/debug/*.apk' -print -quit)
+          test -n "$apk_path"
+          test -f "$apk_path"
+          echo "path=$apk_path" >> "$GITHUB_OUTPUT"
+          ls -lh "$apk_path"
+
+      - name: Upload verified APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: CodeOnTheGo-v8-debug-apk
+          path: ${{ steps.apk.outputs.path }}
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Remove temporary Google Services configuration
+        if: always()
+        run: rm -f app/google-services.json
