@@ -50,12 +50,11 @@ jobs:
           EOF
           fi
 
-      - name: Provision standard Android debug keystore
+      - name: Provision project debug signing key
         run: |
           set -eu
-          key_dir="$HOME/.android"
-          key_path="$key_dir/debug.keystore"
-          mkdir -p "$key_dir"
+          key_path="$GITHUB_WORKSPACE/build/signing/signing-key.jks"
+          mkdir -p "$(dirname "$key_path")"
           keytool -genkeypair -v -noprompt \
             -keystore "$key_path" \
             -storepass android \
@@ -65,6 +64,11 @@ jobs:
             -keysize 2048 \
             -validity 10000 \
             -dname 'CN=Android Debug,O=Android,C=US'
+          {
+            echo 'IDE_SIGNING_ALIAS=androiddebugkey'
+            echo 'IDE_SIGNING_STORE_PASS=android'
+            echo 'IDE_SIGNING_KEY_PASS=android'
+          } >> "$GITHUB_ENV"
 
       - name: Compile Kotlin for V8Debug
         run: |
