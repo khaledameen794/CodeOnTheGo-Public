@@ -32,6 +32,7 @@ dependencies {
 
 	api(projects.templatesApi)
 
+	implementation(projects.agentProjectCore)
 	implementation(projects.shared)
 	implementation(projects.common)
 	implementation(projects.preferences)
