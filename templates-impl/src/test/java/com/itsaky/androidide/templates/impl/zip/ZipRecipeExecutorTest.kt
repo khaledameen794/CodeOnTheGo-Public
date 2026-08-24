@@ -142,13 +142,16 @@ class ZipRecipeExecutorTest {
 	}
 
 	@Test
-	fun `existing project dir is left untouched`() {
+	fun `existing project dir is rejected and left untouched`() {
 		projectDir.mkdirs()
 		val marker = File(projectDir, "marker.txt").apply { writeText("keep") }
 		val zip = buildZip(mapOf("tpl/zbad.txt.peb" to "\${% if %}"))
 
-		executor(zip).execute(recipeExecutor())
+		val error = assertThrows(TemplateExecutionException::class.java) {
+			executor(zip).execute(recipeExecutor())
+		}
 
+		assertThat(error).hasMessageThat().contains("Project directory already exists")
 		assertThat(marker.readText()).isEqualTo("keep")
 	}
 

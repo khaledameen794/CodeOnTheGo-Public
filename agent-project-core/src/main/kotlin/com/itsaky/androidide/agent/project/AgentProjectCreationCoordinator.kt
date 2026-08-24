@@ -40,6 +40,11 @@ class AgentProjectCreationCoordinator(
 	private val records = mutableMapOf<UUID, PlanRecord>()
 
 	fun prepare(request: AgentProjectCreationRequest): ProjectCreationPreparationResult {
+		if (request.templateToken.isBlank()) {
+			return ProjectCreationPreparationResult.RejectedRequest(
+				ProjectRequestRejection.EMPTY_TEMPLATE_TOKEN,
+			)
+		}
 		val safeName =
 			when (val nameResult = projectNamePolicy.validate(request.projectName)) {
 				is ProjectNameValidationResult.Accepted -> nameResult.name
@@ -139,8 +144,8 @@ class AgentProjectCreationCoordinator(
 			when (result) {
 				is ProjectCreationGatewayResult.Failed -> finishFailure(plan.id, result.message)
 				is ProjectCreationGatewayResult.Created -> {
-					if (matchesPlannedDirectory(plan, result.projectDirectory)) {
-						finishCreated(plan.id, plan)
+					if (matchesPlannedDirectory(plan, result.receipt.projectDirectory)) {
+						finishCreated(plan.id, plan, result.receipt)
 					} else {
 						finishFailure(plan.id, "Project creation returned an unexpected directory")
 					}
@@ -158,10 +163,11 @@ class AgentProjectCreationCoordinator(
 	private fun finishCreated(
 		planId: UUID,
 		plan: ProjectCreationPlan,
+		receipt: ProjectCreationReceipt,
 	): ProjectCreationExecutionResult =
 		synchronized(lock) {
 			records[planId]?.state = AgentProjectCreationState.CREATED
-			ProjectCreationExecutionResult.Created(plan)
+			ProjectCreationExecutionResult.Created(plan, receipt)
 		}
 
 	private fun finishFailure(

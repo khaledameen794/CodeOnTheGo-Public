@@ -27,7 +27,7 @@ import java.util.UUID
  */
 data class AgentProjectCreationRequest(
 	val projectName: String,
-	val templateId: String,
+	val templateToken: String,
 	val packageName: String? = null,
 	val language: String? = null,
 )
@@ -43,6 +43,10 @@ enum class ProjectNameRejection {
 	TRAVERSAL_SEQUENCE,
 	INVALID_START,
 	INVALID_CHARACTER,
+}
+
+enum class ProjectRequestRejection {
+	EMPTY_TEMPLATE_TOKEN,
 }
 
 sealed interface ProjectNameValidationResult {
@@ -90,6 +94,8 @@ enum class AgentProjectCreationState {
 sealed interface ProjectCreationPreparationResult {
 	data class AwaitingApproval(val plan: ProjectCreationPlan) : ProjectCreationPreparationResult
 
+	data class RejectedRequest(val reason: ProjectRequestRejection) : ProjectCreationPreparationResult
+
 	data class RejectedName(val reason: ProjectNameRejection) : ProjectCreationPreparationResult
 
 	data class RejectedPath(val reason: ProjectPathRejection) : ProjectCreationPreparationResult
@@ -111,15 +117,29 @@ sealed interface ProjectCreationCancellationResult {
 	data object UnknownPlan : ProjectCreationCancellationResult
 }
 
+/**
+ * Data reported by the platform adapter after its template transaction completes.
+ *
+ * The coordinator verifies [projectDirectory] before exposing this receipt to an
+ * Android opener or terminal launcher.
+ */
+data class ProjectCreationReceipt(
+	val projectDirectory: Path,
+	val hasTemplateIssues: Boolean = false,
+)
+
 sealed interface ProjectCreationGatewayResult {
-	/** The adapter created the project and reports the actual output directory. */
-	data class Created(val projectDirectory: Path) : ProjectCreationGatewayResult
+	/** The adapter created the project and reports a verifiable receipt. */
+	data class Created(val receipt: ProjectCreationReceipt) : ProjectCreationGatewayResult
 
 	data class Failed(val message: String) : ProjectCreationGatewayResult
 }
 
 sealed interface ProjectCreationExecutionResult {
-	data class Created(val plan: ProjectCreationPlan) : ProjectCreationExecutionResult
+	data class Created(
+		val plan: ProjectCreationPlan,
+		val receipt: ProjectCreationReceipt,
+	) : ProjectCreationExecutionResult
 
 	data class Failed(val message: String) : ProjectCreationExecutionResult
 

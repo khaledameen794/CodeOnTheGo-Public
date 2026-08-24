@@ -49,11 +49,25 @@ class AgentProjectCreationCoordinatorTest {
 	}
 
 	@Test
+	fun rejectsBlankTemplateTokenWithoutPreparingOrInvokingGateway() {
+		val gateway = RecordingGateway()
+		val coordinator = newCoordinator(gateway)
+
+		val result = coordinator.prepare(request("ValidProject").copy(templateToken = " "))
+
+		assertEquals(
+			ProjectCreationPreparationResult.RejectedRequest(ProjectRequestRejection.EMPTY_TEMPLATE_TOKEN),
+			result,
+		)
+		assertFalse(gateway.wasInvoked)
+	}
+
+	@Test
 	fun failsWhenGatewayReportsADirectoryDifferentFromTheApprovedPlan() {
 		val gateway = RecordingGateway { plan ->
 			val unexpected = plan.canonicalRoot.resolve("DifferentProject")
 			Files.createDirectory(unexpected)
-			ProjectCreationGatewayResult.Created(unexpected)
+			ProjectCreationGatewayResult.Created(ProjectCreationReceipt(unexpected))
 		}
 		val coordinator = newCoordinator(gateway)
 		val plan = coordinator.prepare(request("ExpectedProject")) as ProjectCreationPreparationResult.AwaitingApproval
@@ -92,7 +106,7 @@ class AgentProjectCreationCoordinatorTest {
 	private fun request(name: String) =
 		AgentProjectCreationRequest(
 			projectName = name,
-			templateId = "android-empty-activity",
+			templateToken = "android-empty-activity",
 		)
 
 	private class RecordingGateway(
@@ -106,9 +120,12 @@ class AgentProjectCreationCoordinatorTest {
 				behavior?.invoke(plan)
 					?: run {
 						Files.createDirectory(plan.projectDirectory)
-						ProjectCreationGatewayResult.Created(plan.projectDirectory)
+						ProjectCreationGatewayResult.Created(receipt(plan.projectDirectory))
 					}
 			return CompletableFuture.completedFuture(result)
 		}
+
+		private fun receipt(projectDirectory: java.nio.file.Path) =
+			ProjectCreationReceipt(projectDirectory = projectDirectory)
 	}
 }

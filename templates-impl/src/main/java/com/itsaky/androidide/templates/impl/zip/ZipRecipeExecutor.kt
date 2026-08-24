@@ -25,6 +25,8 @@ import org.adfa.constants.Sdk
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.StringWriter
+import java.nio.file.FileAlreadyExistsException
+import java.nio.file.Files
 import java.util.ServiceLoader
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
@@ -59,8 +61,18 @@ class ZipRecipeExecutor(
 		info(ctx, R.string.template_exec_info_basepath, basePath)
 
 		val projectDir = data.projectDir
-		if (projectDir.exists()) {
-			return ProjectTemplateRecipeResultImpl(data, hasErrorsWarnings)
+		try {
+			Files.createDirectory(projectDir.toPath())
+		} catch (error: FileAlreadyExistsException) {
+			throw TemplateExecutionException(
+				"Project directory already exists: ${projectDir.absolutePath}",
+				error,
+			)
+		} catch (error: Exception) {
+			throw TemplateExecutionException(
+				"Unable to reserve project directory: ${projectDir.absolutePath}",
+				error,
+			)
 		}
 
 		try {
