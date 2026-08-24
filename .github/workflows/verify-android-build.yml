@@ -78,6 +78,7 @@ jobs:
             -Dorg.gradle.parallel=false -Dorg.gradle.configureondemand=false \
             -Pkotlin.daemon.jvm.options=-Xmx1024m \
             -Pkotlin.compiler.execution.strategy=in-process \
+            -Pkapt.incremental.apt=false \
             -Pandroid.aapt2.daemonHeapSize=512M
 
       - name: Assemble V8Debug APK
@@ -88,6 +89,7 @@ jobs:
             -Dorg.gradle.parallel=false -Dorg.gradle.configureondemand=false \
             -Pkotlin.daemon.jvm.options=-Xmx1024m \
             -Pkotlin.compiler.execution.strategy=in-process \
+            -Pkapt.incremental.apt=false \
             -Pandroid.aapt2.daemonHeapSize=512M
 
       - name: Verify APK output
