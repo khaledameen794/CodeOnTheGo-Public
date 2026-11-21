@@ -134,9 +134,11 @@ jobs:
           IDE_SIGNING_KEY_PASS: ${{ secrets.IDE_SIGNING_KEY_PASS }}
         run: |
           set -euo pipefail
+          free -h
+          nproc
           gradle_args=(
             --no-daemon --console=plain --max-workers=1 --stacktrace
-            -Dorg.gradle.jvmargs='-Xmx4096m -Dfile.encoding=UTF-8'
+            -Dorg.gradle.jvmargs='-Xmx10g -XX:MaxMetaspaceSize=2g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8'
             -Dorg.gradle.parallel=false
             -Dorg.gradle.configureondemand=false
             -Pkotlin.daemon.jvm.options=-Xmx1024m
