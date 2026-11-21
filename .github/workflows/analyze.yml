@@ -8,8 +8,6 @@ permissions:
   actions: write
 
 on:
-  schedule:
-    - cron: '19 7 * * *'  # Daily at 7:19 AM UTC
   workflow_dispatch:
 
 env:
