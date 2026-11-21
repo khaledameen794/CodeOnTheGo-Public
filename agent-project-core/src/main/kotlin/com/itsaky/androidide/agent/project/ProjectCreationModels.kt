@@ -34,7 +34,9 @@ data class AgentProjectCreationRequest(
 
 /** A project directory name accepted by [ProjectNamePolicy]. */
 @JvmInline
-value class SafeProjectName internal constructor(val value: String)
+value class SafeProjectName internal constructor(
+	val value: String,
+)
 
 enum class ProjectNameRejection {
 	EMPTY,
@@ -50,9 +52,13 @@ enum class ProjectRequestRejection {
 }
 
 sealed interface ProjectNameValidationResult {
-	data class Accepted(val name: SafeProjectName) : ProjectNameValidationResult
+	data class Accepted(
+		val name: SafeProjectName,
+	) : ProjectNameValidationResult
 
-	data class Rejected(val reason: ProjectNameRejection) : ProjectNameValidationResult
+	data class Rejected(
+		val reason: ProjectNameRejection,
+	) : ProjectNameValidationResult
 }
 
 enum class ProjectPathRejection {
@@ -69,7 +75,9 @@ sealed interface ProjectPathValidationResult {
 		val projectDirectory: Path,
 	) : ProjectPathValidationResult
 
-	data class Rejected(val reason: ProjectPathRejection) : ProjectPathValidationResult
+	data class Rejected(
+		val reason: ProjectPathRejection,
+	) : ProjectPathValidationResult
 }
 
 /** A reviewed, immutable creation request that still requires explicit user approval. */
@@ -92,19 +100,31 @@ enum class AgentProjectCreationState {
 }
 
 sealed interface ProjectCreationPreparationResult {
-	data class AwaitingApproval(val plan: ProjectCreationPlan) : ProjectCreationPreparationResult
+	data class AwaitingApproval(
+		val plan: ProjectCreationPlan,
+	) : ProjectCreationPreparationResult
 
-	data class RejectedRequest(val reason: ProjectRequestRejection) : ProjectCreationPreparationResult
+	data class RejectedRequest(
+		val reason: ProjectRequestRejection,
+	) : ProjectCreationPreparationResult
 
-	data class RejectedName(val reason: ProjectNameRejection) : ProjectCreationPreparationResult
+	data class RejectedName(
+		val reason: ProjectNameRejection,
+	) : ProjectCreationPreparationResult
 
-	data class RejectedPath(val reason: ProjectPathRejection) : ProjectCreationPreparationResult
+	data class RejectedPath(
+		val reason: ProjectPathRejection,
+	) : ProjectCreationPreparationResult
 }
 
 sealed interface ProjectCreationApprovalResult {
-	data class Approved(val plan: ProjectCreationPlan) : ProjectCreationApprovalResult
+	data class Approved(
+		val plan: ProjectCreationPlan,
+	) : ProjectCreationApprovalResult
 
-	data class NotApprovable(val state: AgentProjectCreationState) : ProjectCreationApprovalResult
+	data class NotApprovable(
+		val state: AgentProjectCreationState,
+	) : ProjectCreationApprovalResult
 
 	data object UnknownPlan : ProjectCreationApprovalResult
 }
@@ -112,7 +132,9 @@ sealed interface ProjectCreationApprovalResult {
 sealed interface ProjectCreationCancellationResult {
 	data object Cancelled : ProjectCreationCancellationResult
 
-	data class NotCancellable(val state: AgentProjectCreationState) : ProjectCreationCancellationResult
+	data class NotCancellable(
+		val state: AgentProjectCreationState,
+	) : ProjectCreationCancellationResult
 
 	data object UnknownPlan : ProjectCreationCancellationResult
 }
@@ -126,13 +148,18 @@ sealed interface ProjectCreationCancellationResult {
 data class ProjectCreationReceipt(
 	val projectDirectory: Path,
 	val hasTemplateIssues: Boolean = false,
+	val localGitInitialized: Boolean = false,
 )
 
 sealed interface ProjectCreationGatewayResult {
 	/** The adapter created the project and reports a verifiable receipt. */
-	data class Created(val receipt: ProjectCreationReceipt) : ProjectCreationGatewayResult
+	data class Created(
+		val receipt: ProjectCreationReceipt,
+	) : ProjectCreationGatewayResult
 
-	data class Failed(val message: String) : ProjectCreationGatewayResult
+	data class Failed(
+		val message: String,
+	) : ProjectCreationGatewayResult
 }
 
 sealed interface ProjectCreationExecutionResult {
@@ -141,13 +168,17 @@ sealed interface ProjectCreationExecutionResult {
 		val receipt: ProjectCreationReceipt,
 	) : ProjectCreationExecutionResult
 
-	data class Failed(val message: String) : ProjectCreationExecutionResult
+	data class Failed(
+		val message: String,
+	) : ProjectCreationExecutionResult
 
 	data object ApprovalRequired : ProjectCreationExecutionResult
 
 	data object AlreadyExecuting : ProjectCreationExecutionResult
 
-	data class NotExecutable(val state: AgentProjectCreationState) : ProjectCreationExecutionResult
+	data class NotExecutable(
+		val state: AgentProjectCreationState,
+	) : ProjectCreationExecutionResult
 
 	data object UnknownPlan : ProjectCreationExecutionResult
 }

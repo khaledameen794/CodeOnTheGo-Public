@@ -64,7 +64,7 @@
     <string name="ai_provider_secret_remove_failed">Could not remove the saved API key. No settings were cleared.</string>
     <string name="agent_template_session_unavailable">This template is no longer available for a safe creation session. Return to the template list and try again.</string>
     <string name="agent_project_review_title">Review project creation</string>
-    <string name="agent_project_review_message">Review this local project creation.\n\nTemplate: %1$s\nFolder name: %2$s\nLocation: %3$s\nPackage: %4$s\nLanguage: %5$s\n\nNo project files are created unless you tap Create. This step does not send project details to an AI provider.</string>
+    <string name="agent_project_review_message">Review this local project creation.\n\nTemplate: %1$s\nFolder name: %2$s\nLocation: %3$s\nPackage: %4$s\nLanguage: %5$s\n\nNo project files are created unless you tap Create. This step does not send project details to an AI provider. After creation, a local Git repository is initialized on main only. No GitHub repository is created and no files are uploaded. Configure a GitHub remote and push later as separate manual actions.</string>
     <string name="agent_project_create_action">Create project</string>
     <string name="agent_project_creation_failed">The approved project could not be created in the planned location.</string>
     <string name="agent_project_creation_invalid">The selected template or project details are no longer valid. Review the template and try again.</string>
@@ -86,4 +86,17 @@
     <string name="agent_ai_invalid_package">The suggested package name is invalid for this template. Edit it in the template form instead.</string>
     <string name="agent_ai_unsupported_language">The suggested language is not available in this template.</string>
     <string name="agent_ai_clone_existing_repo">Use existing GitHub clone flow</string>
+    <string name="git_initialize_local_repository">Initialize local Git</string>
+    <string name="git_configure_github_remote">Configure GitHub remote</string>
+    <string name="git_remote_configured_hidden">Remote configured (URL hidden)</string>
+    <string name="git_remote_not_configured">No remote is configured. Configure a GitHub remote before pulling or pushing.</string>
+    <string name="git_local_repository_initialized">Local Git repository initialized. No remote was created.</string>
+    <string name="git_local_repository_init_failed">Could not initialize the local Git repository. The project remains available.</string>
+    <string name="git_origin_saved_locally">GitHub remote saved in local Git configuration.</string>
+    <string name="git_remote_configuration_failed">Could not save the Git remote configuration.</string>
+    <string name="git_github_remote_setup_message">Enter an HTTPS URL for an existing GitHub repository. This saves origin in this project’s local Git configuration only. It does not create a GitHub repository or upload files; pushing remains a separate manual action.</string>
+    <string name="git_github_remote_replace_message">This replaces the current origin in this project’s local Git configuration only. Enter an HTTPS URL for a GitHub repository. It does not create a repository or upload files; pushing remains a separate manual action.</string>
+    <string name="git_github_remote_url_hint">https://github.com/owner/repository</string>
+    <string name="git_invalid_github_remote">Enter a valid HTTPS GitHub repository URL without credentials or URL parameters.</string>
+    <string name="git_save_origin">Save origin locally</string>
 </resources>

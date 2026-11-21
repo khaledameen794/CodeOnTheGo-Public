@@ -450,9 +450,9 @@ class TemplateDetailsFragment :
 				is com.itsaky.androidide.agent.project.ProjectNameValidationResult.Rejected -> return string.agent_ai_invalid_project_name
 			}
 		val packageParameter =
-				template.parameters
-					.filterIsInstance<StringParameter>()
-					.firstOrNull { it.name == TemplatesR.string.package_name }
+			template.parameters
+				.filterIsInstance<StringParameter>()
+				.firstOrNull { it.name == TemplatesR.string.package_name }
 		if (suggestedPackageName != null) {
 			if (packageParameter == null || !ConstraintVerifier.isValid(suggestedPackageName, packageParameter.constraints)) {
 				return string.agent_ai_invalid_package
@@ -573,13 +573,14 @@ class TemplateDetailsFragment :
 								projectCreationManager.execute(
 									template = isolatedTemplate,
 									onStart = { viewModel.creatingProject.value = true },
-									onSuccess = { result, project ->
+									onSuccess = { result, project, localGitInitialized ->
 										createdRecentProject.set(project)
 										future.complete(
 											ProjectCreationGatewayResult.Created(
 												ProjectCreationReceipt(
 													projectDirectory = result.data.projectDir.toPath(),
 													hasTemplateIssues = result.hasErrorsWarnings,
+													localGitInitialized = localGitInitialized,
 												),
 											),
 										)
@@ -756,11 +757,14 @@ class TemplateDetailsFragment :
 										revokeRetrySession()
 										mainViewModel.creatingProject.value = false
 										mainViewModel.setScreen(MainViewModel.SCREEN_MAIN)
-										host.flashSuccess(string.project_created_successfully)
+										if (result.receipt.localGitInitialized) {
+											host.flashSuccess(string.project_created_successfully)
+										}
 										host.openProject(
 											result.receipt.projectDirectory.toFile(),
 											project = createdRecentProject.get(),
 											hasTemplateIssues = result.receipt.hasTemplateIssues,
+											localGitInitializationFailed = !result.receipt.localGitInitialized,
 										)
 									}
 

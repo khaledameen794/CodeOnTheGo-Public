@@ -40,7 +40,7 @@
     <string name="ai_provider_secret_remove_failed">تعذر حذف مفتاح API المحفوظ. لم تُمسح الإعدادات المرتبطة.</string>
     <string name="agent_template_session_unavailable">لم يعد هذا القالب متاحًا لجلسة إنشاء آمنة. ارجع إلى قائمة القوالب وحاول مجددًا.</string>
     <string name="agent_project_review_title">مراجعة إنشاء المشروع</string>
-    <string name="agent_project_review_message">راجع إنشاء هذا المشروع محليًا.\n\nالقالب: %1$s\nاسم المجلد: %2$s\nالموقع: %3$s\nالحزمة: %4$s\nاللغة: %5$s\n\nلن تُنشأ ملفات المشروع إلا بعد اختيار «إنشاء». لا تُرسل تفاصيل المشروع إلى مزود ذكاء اصطناعي في هذه الخطوة.</string>
+    <string name="agent_project_review_message">راجع إنشاء هذا المشروع محليًا.\n\nالقالب: %1$s\nاسم المجلد: %2$s\nالموقع: %3$s\nالحزمة: %4$s\nاللغة: %5$s\n\nلن تُنشأ ملفات المشروع إلا بعد اختيار «إنشاء». لا تُرسل تفاصيل المشروع إلى مزود ذكاء اصطناعي في هذه الخطوة. بعد الإنشاء، سيُهيأ مستودع Git محلي على main فقط. لن يُنشأ مستودع على GitHub ولن تُرفع ملفات. يمكنك إعداد رابط GitHub ثم تنفيذ الدفع يدويًا في خطوة منفصلة.</string>
     <string name="agent_project_create_action">إنشاء المشروع</string>
     <string name="agent_project_creation_failed">تعذر إنشاء المشروع الموافق عليه في الموقع المخطط.</string>
     <string name="agent_project_creation_invalid">لم يعد القالب المحدد أو تفاصيل المشروع صالحة. راجع القالب وحاول مجددًا.</string>
@@ -62,4 +62,17 @@
     <string name="agent_ai_invalid_package">اسم الحزمة المقترح غير صالح لهذا القالب. عدّله في نموذج القالب.</string>
     <string name="agent_ai_unsupported_language">اللغة المقترحة غير متاحة في هذا القالب.</string>
     <string name="agent_ai_clone_existing_repo">استخدام مسار استنساخ GitHub الحالي</string>
+    <string name="git_initialize_local_repository">تهيئة Git محليًا</string>
+    <string name="git_configure_github_remote">إعداد مستودع GitHub البعيد</string>
+    <string name="git_remote_configured_hidden">تم إعداد مستودع بعيد (الرابط مخفي)</string>
+    <string name="git_remote_not_configured">لا يوجد مستودع بعيد. أعدّ مستودع GitHub قبل السحب أو الدفع.</string>
+    <string name="git_local_repository_initialized">تمت تهيئة مستودع Git محليًا. لم يُنشأ مستودع بعيد.</string>
+    <string name="git_local_repository_init_failed">تعذرت تهيئة مستودع Git المحلي. سيظل المشروع متاحًا.</string>
+    <string name="git_origin_saved_locally">حُفظ رابط GitHub في إعداد Git المحلي.</string>
+    <string name="git_remote_configuration_failed">تعذر حفظ إعداد المستودع البعيد.</string>
+    <string name="git_github_remote_setup_message">أدخل رابط HTTPS لمستودع GitHub موجود. سيُحفظ origin في إعداد Git المحلي لهذا المشروع فقط؛ لن يُنشأ مستودع على GitHub ولن تُرفع ملفات. يظل الدفع إجراءً يدويًا منفصلًا.</string>
+    <string name="git_github_remote_replace_message">سيستبدل هذا origin الحالي في إعداد Git المحلي لهذا المشروع فقط. أدخل رابط HTTPS لمستودع GitHub. لن يُنشأ مستودع ولن تُرفع ملفات؛ يظل الدفع إجراءً يدويًا منفصلًا.</string>
+    <string name="git_github_remote_url_hint">https://github.com/owner/repository</string>
+    <string name="git_invalid_github_remote">أدخل رابط HTTPS صالحًا لمستودع GitHub، بلا بيانات اعتماد أو معاملات URL.</string>
+    <string name="git_save_origin">حفظ origin محليًا</string>
 </resources>

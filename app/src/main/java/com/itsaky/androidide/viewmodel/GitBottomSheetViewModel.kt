@@ -53,6 +53,12 @@ class GitBottomSheetViewModel(
 	private val _isGitRepository = MutableStateFlow(false)
 	val isGitRepository: StateFlow<Boolean> = _isGitRepository.asStateFlow()
 
+	private val _hasOrigin = MutableStateFlow(false)
+	val hasOrigin: StateFlow<Boolean> = _hasOrigin.asStateFlow()
+
+	private val _repositorySetupState = MutableStateFlow<RepositorySetupUiState>(RepositorySetupUiState.Idle)
+	val repositorySetupState: StateFlow<RepositorySetupUiState> = _repositorySetupState.asStateFlow()
+
 	private val _localCommitsCount = MutableStateFlow(0)
 	val localCommitsCount: StateFlow<Int> = _localCommitsCount.asStateFlow()
 
@@ -85,10 +91,12 @@ class GitBottomSheetViewModel(
 				val projectDir = File(IProjectManager.getInstance().projectDirPath)
 				currentRepository = GitRepositoryManager.openRepository(projectDir)
 				_isGitRepository.value = currentRepository != null
+				_hasOrigin.value = currentRepository?.hasOrigin() == true
 				refreshStatus()
 			} catch (e: Exception) {
 				log.error("Failed to initialize repository", e)
 				_isGitRepository.value = false
+				_hasOrigin.value = false
 				_gitStatus.value = GitStatus.EMPTY
 			}
 		}
@@ -101,6 +109,7 @@ class GitBottomSheetViewModel(
 		viewModelScope.launch {
 			try {
 				currentRepository?.let { repo ->
+					_hasOrigin.value = repo.hasOrigin()
 					val status = repo.getStatus()
 					_gitStatus.value = status
 					_currentBranch.value = repo.getCurrentBranch()?.name
@@ -108,15 +117,66 @@ class GitBottomSheetViewModel(
 				} ?: run {
 					_gitStatus.value = GitStatus.EMPTY
 					_currentBranch.value = null
+					_hasOrigin.value = false
 					_localCommitsCount.value = 0
 				}
 			} catch (e: Exception) {
 				log.error("Failed to refresh git status", e)
 				_gitStatus.value = GitStatus.EMPTY
 				_currentBranch.value = null
+				_hasOrigin.value = false
 				_localCommitsCount.value = 0
 			}
 		}
+	}
+
+	fun initializeLocalRepository() {
+		if (_repositorySetupState.value is RepositorySetupUiState.Working) return
+
+		viewModelScope.launch {
+			_repositorySetupState.value = RepositorySetupUiState.Working
+			try {
+				val projectDir = File(IProjectManager.getInstance().projectDirPath)
+				val repository = GitRepositoryManager.initializeRepository(projectDir)
+				currentRepository?.takeIf { it !== repository }?.close()
+				currentRepository = repository
+				_isGitRepository.value = true
+				_hasOrigin.value = repository.hasOrigin()
+				refreshStatus()
+				_repositorySetupState.value = RepositorySetupUiState.LocalRepositoryInitialized
+			} catch (e: Exception) {
+				log.warn("Failed to initialize local Git repository", e)
+				_repositorySetupState.value =
+					RepositorySetupUiState.Error(R.string.git_local_repository_init_failed)
+			}
+		}
+	}
+
+	fun configureOrigin(url: String) {
+		if (_repositorySetupState.value is RepositorySetupUiState.Working) return
+
+		viewModelScope.launch {
+			_repositorySetupState.value = RepositorySetupUiState.Working
+			try {
+				val repository =
+					currentRepository
+						?: throw IllegalStateException("No local Git repository is open")
+				repository.setOriginUrl(url)
+				_hasOrigin.value = repository.hasOrigin()
+				_repositorySetupState.value = RepositorySetupUiState.OriginConfigured
+			} catch (e: IllegalArgumentException) {
+				_repositorySetupState.value =
+					RepositorySetupUiState.Error(R.string.git_invalid_github_remote)
+			} catch (e: Exception) {
+				log.warn("Failed to save Git origin configuration", e)
+				_repositorySetupState.value =
+					RepositorySetupUiState.Error(R.string.git_remote_configuration_failed)
+			}
+		}
+	}
+
+	fun resetRepositorySetupState() {
+		_repositorySetupState.value = RepositorySetupUiState.Idle
 	}
 
 	suspend fun getLocalCommitsCount() {
@@ -182,13 +242,18 @@ class GitBottomSheetViewModel(
 
 		viewModelScope.launch {
 			try {
+				val repository = currentRepository
+				if (repository == null || !repository.hasOrigin()) {
+					_pushState.value = PushUiState.Error(errorResId = R.string.git_remote_not_configured)
+					return@launch
+				}
+
 				if (!isNetworkConnected()) {
 					_pushState.value = PushUiState.Error(errorResId = R.string.no_internet_connection)
 					return@launch
 				}
 
 				_pushState.value = PushUiState.Pushing
-				val repository = currentRepository ?: return@launch
 				val credentials = buildCredentials(username, token)
 				val results = repository.push(credentialsProvider = credentials)
 				val error =
@@ -211,7 +276,7 @@ class GitBottomSheetViewModel(
 					_pushState.value = PushUiState.Error(errorResId = R.string.repo_authorization_error)
 					return@launch
 				}
-				_pushState.value = PushUiState.Error(e.message)
+				_pushState.value = PushUiState.Error(errorResId = R.string.unknown_error)
 			} finally {
 				pushResetJob =
 					viewModelScope.launch {
@@ -238,11 +303,7 @@ class GitBottomSheetViewModel(
 			} else {
 				R.string.unknown_error
 			}
-		_pushState.value =
-			PushUiState.Error(
-				message = update.message ?: update.status.name,
-				errorResId = resId,
-			)
+		_pushState.value = PushUiState.Error(errorResId = resId)
 	}
 
 	private suspend fun handlePushSuccess(
@@ -264,13 +325,18 @@ class GitBottomSheetViewModel(
 
 		viewModelScope.launch {
 			try {
+				val repository = currentRepository
+				if (repository == null || !repository.hasOrigin()) {
+					_pullState.value = PullUiState.Error(errorResId = R.string.git_remote_not_configured)
+					return@launch
+				}
+
 				if (!isNetworkConnected()) {
 					_pullState.value = PullUiState.Error(errorResId = R.string.no_internet_connection)
 					return@launch
 				}
 
 				_pullState.value = PullUiState.Pulling
-				val repository = currentRepository ?: return@launch
 				val credentials = buildCredentials(username, token)
 				val result = repository.pull(credentialsProvider = credentials)
 
@@ -281,17 +347,16 @@ class GitBottomSheetViewModel(
 
 				handlePullSuccess(username, token)
 			} catch (e: CheckoutConflictException) {
-				log.error("Pull failed with checkout conflict", e)
+				log.warn("Pull failed with checkout conflict")
 				val paths = e.conflictingPaths?.joinToString("\n") ?: ""
 				_pullState.value = PullUiState.Error(errorResId = R.string.checkout_conflict_message, errorArgs = listOf(paths))
 			} catch (e: Exception) {
-				log.error("Pull failed", e)
 				if (e.message?.contains("not authorized", ignoreCase = true) == true) {
 					credentialsManager.clearCredentials()
 					_pullState.value = PullUiState.Error(errorResId = R.string.repo_authorization_error)
 					return@launch
 				}
-				_pullState.value = PullUiState.Error(e.message)
+				_pullState.value = PullUiState.Error(errorResId = R.string.unknown_error)
 			} finally {
 				pullResetJob =
 					viewModelScope.launch {
@@ -400,6 +465,20 @@ class GitBottomSheetViewModel(
 				log.error("Failed to abort merge", e)
 			}
 		}
+	}
+
+	sealed class RepositorySetupUiState {
+		data object Idle : RepositorySetupUiState()
+
+		data object Working : RepositorySetupUiState()
+
+		data object LocalRepositoryInitialized : RepositorySetupUiState()
+
+		data object OriginConfigured : RepositorySetupUiState()
+
+		data class Error(
+			val errorResId: Int,
+		) : RepositorySetupUiState()
 	}
 
 	fun resolveConflict(path: String) {

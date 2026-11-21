@@ -419,6 +419,7 @@ class MainActivity : EdgeToEdgeIDEActivity() {
 		root: File,
 		project: RecentProject? = null,
 		hasTemplateIssues: Boolean = false,
+		localGitInitializationFailed: Boolean = false,
 	) {
 		ProjectManagerImpl.getInstance().projectPath = root.absolutePath
 		GeneralPreferences.lastOpenedProject = root.absolutePath
@@ -448,6 +449,9 @@ class MainActivity : EdgeToEdgeIDEActivity() {
 				putExtra("PROJECT_PATH", root.absolutePath)
 				if (hasTemplateIssues) {
 					putExtra("HAS_TEMPLATE_ISSUES", true)
+				}
+				if (localGitInitializationFailed) {
+					putExtra("LOCAL_GIT_INITIALIZATION_FAILED", true)
 				}
 				addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
 			}

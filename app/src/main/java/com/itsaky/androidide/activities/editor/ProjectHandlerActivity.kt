@@ -232,8 +232,17 @@ abstract class ProjectHandlerActivity : BaseEditorActivity() {
 		observeStates()
 		startServices()
 
-		if (intent.getBooleanExtra("HAS_TEMPLATE_ISSUES", false)) {
-			flashError(getString(string.msg_template_warnings))
+		val projectWarnings =
+			buildList {
+				if (intent.getBooleanExtra("HAS_TEMPLATE_ISSUES", false)) {
+					add(getString(string.msg_template_warnings))
+				}
+				if (intent.getBooleanExtra("LOCAL_GIT_INITIALIZATION_FAILED", false)) {
+					add(getString(string.git_local_repository_init_failed))
+				}
+			}
+		if (projectWarnings.isNotEmpty()) {
+			flashError(projectWarnings.joinToString("\n\n"))
 		}
 	}
 

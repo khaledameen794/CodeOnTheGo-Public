@@ -1,6 +1,5 @@
 package com.itsaky.androidide.git.core
 
-import android.util.Log
 import org.eclipse.jgit.transport.URIish
 import java.net.URISyntaxException
 
@@ -15,19 +14,23 @@ import java.net.URISyntaxException
  * @return The normalized Git URL string, or null if the input is invalid or parsing fails.
  */
 fun parseGitRepositoryUrl(rawText: String): String? {
-    val candidate = rawText.trim()
-    if (candidate.isBlank()) return null
+	val candidate = rawText.trim()
+	if (candidate.isBlank() || candidate.length > 2_048) return null
+	if (candidate.any(Char::isISOControl) || '?' in candidate || '#' in candidate) return null
 
-    return try {
-        val uri = URIish(candidate)
+	return try {
+		val uri = URIish(candidate)
+		val scheme = uri.scheme?.lowercase()
+		val isStandardSshUser =
+			uri.user.equals("git", ignoreCase = true) && (scheme == null || scheme == "ssh")
+		if (uri.pass != null || (!uri.user.isNullOrBlank() && !isStandardSshUser)) return null
 
-        if (uri.host != null || uri.scheme != null) {
-            uri.toString()
-        } else {
-            null
-        }
-    } catch (e: URISyntaxException) {
-        Log.w("GitParser", "Failed to parse Git URL candidate: $candidate", e)
-        null
-    }
+		if (uri.host != null || uri.scheme != null) {
+			uri.toString()
+		} else {
+			null
+		}
+	} catch (_: URISyntaxException) {
+		null
+	}
 }
