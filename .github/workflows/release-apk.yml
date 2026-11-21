@@ -181,7 +181,15 @@ jobs:
 
           for apk in dist/*.apk; do
             echo "Verifying $(basename "$apk")"
-            signature_output=$(flox activate -d flox/base -- apksigner verify --verbose --print-certs "$apk")
+            signature_output=$(flox activate -d flox/base -- bash -c '
+              set -euo pipefail
+              signer="$ANDROID_HOME/build-tools/36.0.0/apksigner"
+              if [[ ! -x "$signer" ]]; then
+                echo "apksigner not found at $signer" >&2
+                exit 1
+              fi
+              exec "$signer" verify --verbose --print-certs "$1"
+            ' _ "$apk")
             actual_cert=$(printf '%s\n' "$signature_output" \
               | awk '/Signer #1 certificate SHA-256 digest:/ {print tolower($NF); exit}')
             if [[ -z "$actual_cert" || "$actual_cert" != "$expected_cert" ]]; then
