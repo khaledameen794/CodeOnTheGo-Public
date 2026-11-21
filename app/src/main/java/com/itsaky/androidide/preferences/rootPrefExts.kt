@@ -30,15 +30,15 @@ internal fun IDEPreferences.addRootPreferences() {
 class ConfigurationPreferences(
 	override val key: String = "idepref_configure",
 	override val title: Int = string.configure,
-	override val children: List<IPreference> = mutableListOf()
+	override val children: List<IPreference> = mutableListOf(),
 ) : IPreferenceGroup() {
-
 	init {
 		addPreference(GeneralPreferencesScreen())
 		addPreference(EditorPreferencesScreen())
 		addPreference(BuildAndRunPreferences())
 		addPreference(TermuxPreferences())
 		addPreference(GitPreferencesScreen())
+		addPreference(AiProviderPreferencesScreen())
 		addPreference(PluginManagerEntry())
 		pluginSettingsPreferences().forEach { addPreference(it) }
 

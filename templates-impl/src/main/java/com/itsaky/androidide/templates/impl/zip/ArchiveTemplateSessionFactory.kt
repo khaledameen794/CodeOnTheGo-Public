@@ -22,7 +22,9 @@ import com.itsaky.androidide.agent.project.TemplateSessionDescriptor
 import com.itsaky.androidide.templates.ProjectTemplate
 import com.itsaky.androidide.templates.impl.TemplateWarning
 import org.adfa.constants.TEMPLATE_ARCHIVE_EXTENSION
+import org.slf4j.LoggerFactory
 import java.io.File
+import java.security.MessageDigest
 import java.util.UUID
 import java.util.zip.ZipFile
 
@@ -38,6 +40,7 @@ import java.util.zip.ZipFile
 class ArchiveTemplateSessionFactory(
 	private val archives: () -> List<File>,
 ) : IsolatedTemplateSessionFactory<ProjectTemplate> {
+	private val log = LoggerFactory.getLogger(ArchiveTemplateSessionFactory::class.java)
 	private val lock = Any()
 	private val locators = mutableMapOf<String, TemplateLocator>()
 
@@ -48,24 +51,44 @@ class ArchiveTemplateSessionFactory(
 	fun catalog(): List<TemplateSessionDescriptor> =
 		synchronized(lock) {
 			locators.clear()
-			archives()
+			val archiveFiles =
+				try {
+					archives()
+				} catch (error: Exception) {
+					log.error("Failed to enumerate template archives", error)
+					emptyList()
+				}
+			archiveFiles
 				.filter { it.isFile && it.extension.equals(TEMPLATE_ARCHIVE_EXTENSION, ignoreCase = true) }
+				.sortedBy { it.name }
 				.flatMap { archive ->
-					val canonicalArchive = archive.canonicalFile
-					val fingerprint = ArchiveFingerprint.from(canonicalArchive)
-					val templates = loadTemplates(canonicalArchive)
+					var templates = emptyList<ProjectTemplate>()
 					try {
-						templates.mapIndexed { index, template ->
-							val sourceId = UUID.randomUUID().toString()
+						val canonicalArchive = archive.canonicalFile
+						val fingerprint = ArchiveFingerprint.from(canonicalArchive)
+						templates = loadTemplates(canonicalArchive)
+						val entries =
+							templates.mapIndexed { index, template ->
+								val sourceId = UUID.randomUUID().toString()
+								sourceId to
+									TemplateSessionDescriptor(
+										sourceId = sourceId,
+										displayName = template.templateNameStr,
+									)
+							}
+						entries.forEachIndexed { index, (sourceId, _) ->
 							locators[sourceId] = TemplateLocator(canonicalArchive, fingerprint, index)
-							TemplateSessionDescriptor(
-								sourceId = sourceId,
-								displayName = template.templateNameStr,
-							)
 						}
+						entries.map { it.second }
+					} catch (error: Exception) {
+						log.error("Failed to catalog template archive: $archive", error)
+						emptyList()
 					} finally {
 						// Catalog construction never hands these mutable objects to a caller.
-						templates.forEach(ProjectTemplate::release)
+						templates.forEach { template ->
+							runCatching { template.release() }
+								.onFailure { error -> log.warn("Failed to release catalog template", error) }
+						}
 					}
 				}
 		}
@@ -76,7 +99,11 @@ class ArchiveTemplateSessionFactory(
 			return null
 		}
 
-		val freshTemplates = loadTemplates(locator.archive)
+		val freshTemplates = loadTemplates(locator.archive, locator.fingerprint)
+		if (!locator.matchesCurrentArchive()) {
+			freshTemplates.forEach(ProjectTemplate::release)
+			return null
+		}
 		val selected = freshTemplates.getOrNull(locator.templateIndex)
 		freshTemplates.forEachIndexed { index, template ->
 			if (index != locator.templateIndex) {
@@ -86,11 +113,19 @@ class ArchiveTemplateSessionFactory(
 		return selected
 	}
 
-	private fun loadTemplates(archive: File): List<ProjectTemplate> {
+	private fun loadTemplates(
+		archive: File,
+		expectedFingerprint: ArchiveFingerprint? = null,
+	): List<ProjectTemplate> {
 		val warnings = mutableListOf<TemplateWarning>()
 		return ZipTemplateReader.read(archive, warnings) { json, params, basePath, data, module ->
 			ZipRecipeExecutor(
-				zipProvider = { ZipFile(archive) },
+				zipProvider = {
+					check(expectedFingerprint == null || expectedFingerprint.matches(archive)) {
+						"Template archive changed after review"
+					}
+					ZipFile(archive)
+				},
 				metaJson = json,
 				params = params,
 				basePath = basePath,
@@ -105,15 +140,40 @@ class ArchiveTemplateSessionFactory(
 		val fingerprint: ArchiveFingerprint,
 		val templateIndex: Int,
 	) {
-		fun matchesCurrentArchive(): Boolean = archive.isFile && ArchiveFingerprint.from(archive) == fingerprint
+		fun matchesCurrentArchive(): Boolean = fingerprint.matches(archive)
 	}
 
 	private data class ArchiveFingerprint(
 		val size: Long,
 		val lastModified: Long,
+		val sha256: String,
 	) {
+		fun matches(file: File): Boolean {
+			if (!file.isFile || file.length() != size || file.lastModified() != lastModified) {
+				return false
+			}
+			return runCatching { from(file) == this }.getOrDefault(false)
+		}
+
 		companion object {
-			fun from(file: File) = ArchiveFingerprint(file.length(), file.lastModified())
+			fun from(file: File): ArchiveFingerprint {
+				val size = file.length()
+				val lastModified = file.lastModified()
+				val digest = MessageDigest.getInstance("SHA-256")
+				file.inputStream().buffered().use { input ->
+					val buffer = ByteArray(8 * 1024)
+					while (true) {
+						val count = input.read(buffer)
+						if (count < 0) break
+						digest.update(buffer, 0, count)
+					}
+				}
+				check(file.length() == size && file.lastModified() == lastModified) {
+					"Template archive changed while calculating its fingerprint"
+				}
+				val sha256 = digest.digest().joinToString("") { "%02x".format(it.toInt() and 0xff) }
+				return ArchiveFingerprint(size, lastModified, sha256)
+			}
 		}
 	}
 

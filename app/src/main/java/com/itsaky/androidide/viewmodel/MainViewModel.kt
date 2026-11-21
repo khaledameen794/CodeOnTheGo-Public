@@ -24,9 +24,11 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.itsaky.androidide.agent.project.TemplateSessionRegistry
 import com.itsaky.androidide.roomData.recentproject.RecentProject
 import com.itsaky.androidide.roomData.recentproject.RecentProjectDao
 import com.itsaky.androidide.templates.Language
+import com.itsaky.androidide.templates.ProjectTemplate
 import com.itsaky.androidide.templates.Template
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -71,6 +73,8 @@ class MainViewModel(
 	private val cloneRepositoryEventChannel = Channel<String>(Channel.BUFFERED)
 
 	internal val template = MutableLiveData<Template<*>>(null)
+	internal var templateSessionRegistry: TemplateSessionRegistry<ProjectTemplate>? = null
+	internal var selectedTemplateSessionToken: String? = null
 	internal val creatingProject = MutableLiveData(false)
 
 	val currentScreen: LiveData<Int> = _currentScreen

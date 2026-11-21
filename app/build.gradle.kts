@@ -348,6 +348,8 @@ dependencies {
 
 	// Local projects here
 	implementation(projects.actions)
+	implementation(projects.agentProjectCore)
+	implementation(projects.aiProviderCore)
 	implementation(projects.buildInfo)
 	implementation(projects.common)
 	implementation(projects.commonUi)

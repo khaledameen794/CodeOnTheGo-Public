@@ -7,11 +7,7 @@ permissions:
   pull-requests: read
 
 on:
-  push:
-    branches-ignore:
-      - main
-
-  workflow_dispatch: { }
+  workflow_dispatch:
 
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -37,17 +33,17 @@ jobs:
     outputs:
       must_build: ${{ steps.check.outputs.must_build }}
     steps:
-      - name: Checkout PR branch
+      - name: Checkout selected ref
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ github.ref }}
           fetch-depth: 0
 
       - name: Check if new branch with no meaningful commits
         id: check
         run: |
           # Get the current branch name
-          BRANCH_NAME=$(git branch --show-current)
+          BRANCH_NAME="${GITHUB_REF_NAME:-$(git branch --show-current)}"
           echo "Current branch: $BRANCH_NAME"
 
           # Check commit count for logging
@@ -149,10 +145,10 @@ jobs:
         with:
           access_token: ${{ github.token }}
 
-      - name: Checkout PR branch
+      - name: Checkout selected ref
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ github.ref }}
           fetch-depth: 0
 
       - name: Validate branch name length

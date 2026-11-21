@@ -1,12 +1,13 @@
 package com.itsaky.androidide.agent.project
 
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Test
 
 class TemplateSessionRegistryTest {
 	@Test
@@ -26,6 +27,48 @@ class TemplateSessionRegistryTest {
 			TemplateSessionAcquireResult.UnknownOrConsumedToken,
 			registry.consume(option.token),
 		)
+	}
+
+	@Test
+	fun forkProvidesOneIndependentRetryTokenForAnUnconsumedSession() {
+		val factory = RecordingFactory()
+		val registry = TemplateSessionRegistry(factory)
+		val original = registry.issue(listOf(descriptor("archive-a:0"))).single()
+
+		val retry = registry.fork(original.token)!!
+
+		assertTrue(retry.token != original.token)
+		assertTrue(retry.token != "archive-a:0")
+		assertEquals(null, registry.fork(original.token))
+		assertEquals(null, registry.fork(retry.token))
+		assertEquals(
+			TemplateSessionAcquireResult.Acquired("fresh:archive-a:0"),
+			registry.consume(original.token),
+		)
+		assertEquals(
+			TemplateSessionAcquireResult.Acquired("fresh:archive-a:0"),
+			registry.consume(retry.token),
+		)
+		assertEquals(listOf("archive-a:0", "archive-a:0"), factory.createdSourceIds)
+	}
+
+	@Test
+	fun revokePreventsFactoryInvocationAndDoesNotAffectOtherSessions() {
+		val factory = RecordingFactory()
+		val registry = TemplateSessionRegistry(factory)
+		val options = registry.issue(listOf(descriptor("archive-a:0"), descriptor("archive-b:1")))
+
+		assertTrue(registry.revoke(options[0].token))
+		assertFalse(registry.revoke(options[0].token))
+		assertEquals(
+			TemplateSessionAcquireResult.UnknownOrConsumedToken,
+			registry.consume(options[0].token),
+		)
+		assertEquals(
+			TemplateSessionAcquireResult.Acquired("fresh:archive-b:1"),
+			registry.consume(options[1].token),
+		)
+		assertEquals(listOf("archive-b:1"), factory.createdSourceIds)
 	}
 
 	@Test
@@ -63,7 +106,9 @@ class TemplateSessionRegistryTest {
 		}
 	}
 
-	private class MutableClock(initial: Instant) : Clock() {
+	private class MutableClock(
+		initial: Instant,
+	) : Clock() {
 		private var current = initial
 
 		override fun getZone() = ZoneOffset.UTC

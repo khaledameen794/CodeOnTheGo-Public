@@ -15,6 +15,14 @@ class ProjectNamePolicyTest {
 			ProjectNameValidationResult.Accepted(SafeProjectName("Weather_Client-2")),
 			result,
 		)
+		assertEquals(
+			ProjectNameValidationResult.Accepted(SafeProjectName("My Application")),
+			policy.validate("My Application"),
+		)
+		assertEquals(
+			ProjectNameValidationResult.Accepted(SafeProjectName("مشروع خالد")),
+			policy.validate("مشروع خالد"),
+		)
 	}
 
 	@Test
@@ -27,7 +35,8 @@ class ProjectNamePolicyTest {
 		assertRejected("nested\\project", ProjectNameRejection.PATH_SEPARATOR)
 		assertRejected("/absolute", ProjectNameRejection.PATH_SEPARATOR)
 		assertRejected("7start", ProjectNameRejection.INVALID_START)
-		assertRejected("with space", ProjectNameRejection.INVALID_CHARACTER)
+		assertRejected(" leading", ProjectNameRejection.INVALID_CHARACTER)
+		assertRejected("trailing ", ProjectNameRejection.INVALID_CHARACTER)
 		assertRejected("name\u0000", ProjectNameRejection.INVALID_CHARACTER)
 		assertRejected("a".repeat(65), ProjectNameRejection.TOO_LONG)
 	}

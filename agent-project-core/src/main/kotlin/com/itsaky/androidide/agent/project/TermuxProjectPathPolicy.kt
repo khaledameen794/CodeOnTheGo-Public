@@ -25,11 +25,14 @@ import java.nio.file.Path
 /**
  * Derives exactly one direct-child project path from a trusted workspace root.
  *
- * The root comes from application configuration, never the model or a chat
- * message. Resolving it to a real path prevents an existing root symlink from
- * changing the containment boundary during planning.
+ * The root comes from trusted application settings or a location explicitly
+ * entered by the user in the template form, never from an AI request. Resolving
+ * it to a real path prevents an existing root symlink from changing the
+ * containment boundary during planning.
  */
-class TermuxProjectPathPolicy(private val workspaceRoot: Path) {
+class TermuxProjectPathPolicy(
+	private val workspaceRoot: Path,
+) {
 	fun validate(projectName: SafeProjectName): ProjectPathValidationResult {
 		if (!Files.exists(workspaceRoot, NOFOLLOW_LINKS)) {
 			return ProjectPathValidationResult.Rejected(ProjectPathRejection.ROOT_MISSING)

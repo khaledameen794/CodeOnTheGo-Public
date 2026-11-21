@@ -52,7 +52,9 @@ fun interface IsolatedTemplateSessionFactory<T> {
 }
 
 sealed interface TemplateSessionAcquireResult<out T> {
-	data class Acquired<T>(val template: T) : TemplateSessionAcquireResult<T>
+	data class Acquired<T>(
+		val template: T,
+	) : TemplateSessionAcquireResult<T>
 
 	data object UnknownOrConsumedToken : TemplateSessionAcquireResult<Nothing>
 
@@ -98,6 +100,28 @@ class TemplateSessionRegistry<T>(
 		}
 	}
 
+	/** Issues one short-lived retry token for an unconsumed source without exposing its source ID. */
+	fun fork(token: String): TemplateSessionOption? {
+		if (token.isBlank()) return null
+		return synchronized(lock) {
+			val now = clock.instant()
+			pruneExpired(now)
+			val source = pending[token] ?: return@synchronized null
+			if (source.hasForked) return@synchronized null
+
+				val expiresAt = now.plus(tokenTtl)
+				val retryToken = UUID.randomUUID().toString()
+				pending[token] = source.copy(hasForked = true)
+				pending[retryToken] = PendingSession(source.descriptor, expiresAt, hasForked = true)
+				TemplateSessionOption(
+				token = retryToken,
+				displayName = source.descriptor.displayName,
+				description = source.descriptor.description,
+				expiresAt = expiresAt,
+			)
+		}
+	}
+
 	fun consume(token: String): TemplateSessionAcquireResult<T> {
 		if (token.isBlank()) {
 			return TemplateSessionAcquireResult.UnknownOrConsumedToken
@@ -124,6 +148,15 @@ class TemplateSessionRegistry<T>(
 		}
 	}
 
+	/** Discards an unconsumed token when the user closes its review session. */
+	fun revoke(token: String): Boolean {
+		if (token.isBlank()) return false
+		return synchronized(lock) {
+			pruneExpired(clock.instant())
+			pending.remove(token) != null
+		}
+	}
+
 	private fun pruneExpired(now: Instant) {
 		pending.entries.removeIf { (_, session) -> !now.isBefore(session.expiresAt) }
 	}
@@ -131,6 +164,7 @@ class TemplateSessionRegistry<T>(
 	private data class PendingSession(
 		val descriptor: TemplateSessionDescriptor,
 		val expiresAt: Instant,
+		val hasForked: Boolean = false,
 	)
 
 	private companion object {

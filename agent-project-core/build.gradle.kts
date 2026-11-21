@@ -22,6 +22,7 @@ plugins {
 
 dependencies {
 	implementation(libs.common.jkotlin)
+	implementation(libs.gson.v2101)
 
 	testImplementation(libs.tests.junit)
 }

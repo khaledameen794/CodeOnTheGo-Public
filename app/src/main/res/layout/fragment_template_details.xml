@@ -45,6 +45,18 @@
     app:layout_constraintTop_toBottomOf="@id/progress"
     tools:text="@string/new_project" />
 
+  <com.google.android.material.button.MaterialButton
+    android:id="@+id/aiAssistant"
+    style="@style/Widget.Material3.Button.OutlinedButton"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="16dp"
+    android:layout_marginEnd="16dp"
+    android:text="@string/agent_ai_assistant_button"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintTop_toBottomOf="@id/title" />
+
   <androidx.recyclerview.widget.RecyclerView
     android:id="@+id/widgets"
     android:layout_width="0dp"
@@ -54,7 +66,7 @@
     app:layout_constraintBottom_toTopOf="@id/previous"
     app:layout_constraintEnd_toEndOf="parent"
     app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintTop_toBottomOf="@id/title" />
+    app:layout_constraintTop_toBottomOf="@id/aiAssistant" />
 
   <com.google.android.material.button.MaterialButton
     android:id="@+id/previous"

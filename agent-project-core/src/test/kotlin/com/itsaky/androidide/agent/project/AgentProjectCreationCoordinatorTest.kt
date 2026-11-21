@@ -1,14 +1,14 @@
 package com.itsaky.androidide.agent.project
 
-import java.nio.file.Files
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CompletionStage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.nio.file.Files
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionStage
 
 class AgentProjectCreationCoordinatorTest {
 	@get:Rule
@@ -24,6 +24,8 @@ class AgentProjectCreationCoordinatorTest {
 
 		assertEquals(ProjectCreationExecutionResult.ApprovalRequired, beforeApproval)
 		assertFalse(gateway.wasInvoked)
+		assertFalse(Files.exists(plan.plan.projectDirectory))
+		assertTrue(Files.newDirectoryStream(plan.plan.canonicalRoot).use { !it.iterator().hasNext() })
 		assertEquals(AgentProjectCreationState.AWAITING_APPROVAL, coordinator.state(plan.plan.id))
 
 		assertTrue(coordinator.approve(plan.plan.id) is ProjectCreationApprovalResult.Approved)
@@ -63,12 +65,30 @@ class AgentProjectCreationCoordinatorTest {
 	}
 
 	@Test
+	fun cancellingApprovedPlanBeforeExecutionDoesNotInvokeGatewayOrCreateDirectory() {
+		val gateway = RecordingGateway()
+		val coordinator = newCoordinator(gateway)
+		val plan = coordinator.prepare(request("CancelledProject")) as ProjectCreationPreparationResult.AwaitingApproval
+
+		assertTrue(coordinator.approve(plan.plan.id) is ProjectCreationApprovalResult.Approved)
+		assertEquals(ProjectCreationCancellationResult.Cancelled, coordinator.cancel(plan.plan.id))
+		val execution = coordinator.execute(plan.plan.id).toCompletableFuture().join()
+
+		assertTrue(execution is ProjectCreationExecutionResult.NotExecutable)
+		assertFalse(gateway.wasInvoked)
+		assertFalse(Files.exists(plan.plan.projectDirectory))
+		assertTrue(Files.newDirectoryStream(plan.plan.canonicalRoot).use { !it.iterator().hasNext() })
+		assertEquals(AgentProjectCreationState.CANCELLED, coordinator.state(plan.plan.id))
+	}
+
+	@Test
 	fun failsWhenGatewayReportsADirectoryDifferentFromTheApprovedPlan() {
-		val gateway = RecordingGateway { plan ->
-			val unexpected = plan.canonicalRoot.resolve("DifferentProject")
-			Files.createDirectory(unexpected)
-			ProjectCreationGatewayResult.Created(ProjectCreationReceipt(unexpected))
-		}
+		val gateway =
+			RecordingGateway { plan ->
+				val unexpected = plan.canonicalRoot.resolve("DifferentProject")
+				Files.createDirectory(unexpected)
+				ProjectCreationGatewayResult.Created(ProjectCreationReceipt(unexpected))
+			}
 		val coordinator = newCoordinator(gateway)
 		val plan = coordinator.prepare(request("ExpectedProject")) as ProjectCreationPreparationResult.AwaitingApproval
 
@@ -125,7 +145,6 @@ class AgentProjectCreationCoordinatorTest {
 			return CompletableFuture.completedFuture(result)
 		}
 
-		private fun receipt(projectDirectory: java.nio.file.Path) =
-			ProjectCreationReceipt(projectDirectory = projectDirectory)
+		private fun receipt(projectDirectory: java.nio.file.Path) = ProjectCreationReceipt(projectDirectory = projectDirectory)
 	}
 }

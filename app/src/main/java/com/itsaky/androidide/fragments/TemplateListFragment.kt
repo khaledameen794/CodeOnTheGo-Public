@@ -17,14 +17,14 @@
 
 package com.itsaky.androidide.fragments
 
+import android.content.res.Configuration
 import android.os.Bundle
 import android.view.View
-import android.content.res.Configuration
 import androidx.lifecycle.lifecycleScope
-import org.koin.androidx.viewmodel.ext.android.activityViewModel
 import androidx.recyclerview.widget.GridLayoutManager
 import com.itsaky.androidide.R
 import com.itsaky.androidide.adapters.TemplateListAdapter
+import com.itsaky.androidide.agent.project.TemplateSessionRegistry
 import com.itsaky.androidide.databinding.FragmentTemplateListBinding
 import com.itsaky.androidide.idetooltips.TooltipManager
 import com.itsaky.androidide.idetooltips.TooltipTag.EXIT_TO_MAIN
@@ -32,12 +32,15 @@ import com.itsaky.androidide.templates.ITemplateProvider
 import com.itsaky.androidide.templates.ITemplateWidgetViewProvider
 import com.itsaky.androidide.templates.ProjectTemplate
 import com.itsaky.androidide.templates.impl.TemplateProviderImpl
+import com.itsaky.androidide.templates.impl.zip.ArchiveTemplateSessionFactory
+import com.itsaky.androidide.utils.Environment
 import com.itsaky.androidide.utils.flashError
 import com.itsaky.androidide.viewmodel.MainViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.koin.androidx.viewmodel.ext.android.activityViewModel
 import org.slf4j.LoggerFactory
 
 /**
@@ -125,46 +128,82 @@ class TemplateListFragment :
 		log.debug("Reloading templates...")
 
 		reloadJob?.cancel()
-		reloadJob = viewLifecycleOwner.lifecycleScope.launch {
-			val (templates, warnings) = withContext(Dispatchers.IO) {
-				val provider = ITemplateProvider.getInstance(reload = true)
-				// Pre-warm the widget view provider so per-bind getInstance() in
-				// TemplateWidgetsListAdapter doesn't trigger a disk read on the UI thread.
-				ITemplateWidgetViewProvider.getInstance()
-				val templates = provider.getTemplates().filterIsInstance<ProjectTemplate>()
-				val warnings = (provider as? TemplateProviderImpl)?.warnings.orEmpty()
-				templates to warnings
-			}
-
-			_binding ?: return@launch
-
-			adapter =
-				TemplateListAdapter(
-					templates = templates,
-					onClick = { template, _ ->
-						viewModel.template.value = template
-						viewModel.setScreen(MainViewModel.SCREEN_TEMPLATE_DETAILS)
-					},
-					onLongClick = { template, itemView ->
-						template.tooltipTag?.let { tag ->
-							TooltipManager.showIdeCategoryTooltip(
-								context = requireContext(),
-								anchorView = itemView,
-								tag = tag
-							)
-						}
-					},
-				)
-			binding.list.adapter = adapter
-			updateSpanCount()
-
-			if (warnings.isNotEmpty()) {
-				requireActivity().flashError(
-					warnings.joinToString(System.lineSeparator()) { w ->
-						requireContext().getString(w.resId, *w.args.toTypedArray())
+		reloadJob =
+			viewLifecycleOwner.lifecycleScope.launch {
+				val (templates, warnings, sessionData) =
+					withContext(Dispatchers.IO) {
+						val provider = ITemplateProvider.getInstance(reload = true)
+						// Pre-warm the widget view provider so per-bind getInstance() in
+						// TemplateWidgetsListAdapter doesn't trigger a disk read on the UI thread.
+						ITemplateWidgetViewProvider.getInstance()
+						val templates = provider.getTemplates().filterIsInstance<ProjectTemplate>()
+						val warnings = (provider as? TemplateProviderImpl)?.warnings.orEmpty()
+						val factory = ArchiveTemplateSessionFactory.fromDirectory(Environment.TEMPLATES_DIR)
+						val registry = TemplateSessionRegistry(factory)
+						val descriptors = factory.catalog()
+						val catalogMatches =
+							templates.size == descriptors.size &&
+								templates.zip(descriptors).all { (template, descriptor) ->
+									template.templateNameStr == descriptor.displayName
+								}
+						val descriptorsByTemplateId =
+							if (catalogMatches) {
+								templates.zip(descriptors).associate { (template, descriptor) ->
+									template.templateId to descriptor
+								}
+							} else {
+								emptyMap()
+							}
+						Triple(
+							templates,
+							warnings,
+							registry to (descriptorsByTemplateId to catalogMatches),
+						)
 					}
-				)
+				val (registry, tokenResult) = sessionData
+				val (descriptorsByTemplateId, catalogMatches) = tokenResult
+
+				_binding ?: return@launch
+				viewModel.templateSessionRegistry = registry
+				viewModel.selectedTemplateSessionToken = null
+
+				adapter =
+					TemplateListAdapter(
+						templates = templates,
+						onClick = { template, _ ->
+							val descriptor = descriptorsByTemplateId[template.templateId]
+							if (descriptor == null) {
+								requireActivity().flashError(getString(R.string.agent_template_session_unavailable))
+							} else {
+								val token = registry.issue(listOf(descriptor)).single().token
+								viewModel.selectedTemplateSessionToken = token
+								viewModel.template.value = template
+								viewModel.setScreen(MainViewModel.SCREEN_TEMPLATE_DETAILS)
+							}
+						},
+						onLongClick = { template, itemView ->
+							template.tooltipTag?.let { tag ->
+								TooltipManager.showIdeCategoryTooltip(
+									context = requireContext(),
+									anchorView = itemView,
+									tag = tag,
+								)
+							}
+						},
+					)
+				binding.list.adapter = adapter
+				updateSpanCount()
+				if (!catalogMatches && templates.isNotEmpty()) {
+					requireActivity().flashError(getString(R.string.agent_template_session_unavailable))
+				}
+
+				if (warnings.isNotEmpty()) {
+					requireActivity().flashError(
+						warnings.joinToString(System.lineSeparator()) { warning ->
+							requireContext().getString(warning.resId, *warning.args.toTypedArray())
+						},
+					)
+				}
 			}
-		}
 	}
 }

@@ -29,13 +29,16 @@ class ProjectNamePolicy {
 		if (candidate.length > MAX_LENGTH) {
 			return ProjectNameValidationResult.Rejected(ProjectNameRejection.TOO_LONG)
 		}
+		if (candidate != candidate.trim()) {
+			return ProjectNameValidationResult.Rejected(ProjectNameRejection.INVALID_CHARACTER)
+		}
 		if (candidate.contains('/') || candidate.contains('\\')) {
 			return ProjectNameValidationResult.Rejected(ProjectNameRejection.PATH_SEPARATOR)
 		}
 		if (candidate.contains("..")) {
 			return ProjectNameValidationResult.Rejected(ProjectNameRejection.TRAVERSAL_SEQUENCE)
 		}
-		if (!candidate.first().isAsciiLetter()) {
+		if (!Character.isLetter(candidate.codePointAt(0))) {
 			return ProjectNameValidationResult.Rejected(ProjectNameRejection.INVALID_START)
 		}
 		if (!NAME_PATTERN.matches(candidate)) {
@@ -45,10 +48,8 @@ class ProjectNamePolicy {
 		return ProjectNameValidationResult.Accepted(SafeProjectName(candidate))
 	}
 
-	private fun Char.isAsciiLetter(): Boolean = this in 'A'..'Z' || this in 'a'..'z'
-
 	private companion object {
 		const val MAX_LENGTH = 64
-		val NAME_PATTERN = Regex("^[A-Za-z][A-Za-z0-9_-]{0,63}$")
+		val NAME_PATTERN = Regex("^[\\p{L}][\\p{L}\\p{N} _-]{0,63}$")
 	}
 }

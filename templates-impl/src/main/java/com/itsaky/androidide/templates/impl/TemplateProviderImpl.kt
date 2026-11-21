@@ -50,7 +50,10 @@ class TemplateProviderImpl : ITemplateProvider {
 
 	private fun initializeTemplates() {
 		val folder = TEMPLATES_DIR
-		val list = folder.listFiles { file -> file.extension.equals(TEMPLATE_ARCHIVE_EXTENSION, ignoreCase = true) } ?: return
+		val list =
+			folder
+				.listFiles { file -> file.extension.equals(TEMPLATE_ARCHIVE_EXTENSION, ignoreCase = true) }
+				?.sortedBy { it.name } ?: return
 
 		for (zipFile in list) {
 			try {
